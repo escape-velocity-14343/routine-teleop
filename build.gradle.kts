@@ -1,10 +1,16 @@
 plugins {
-    kotlin("kapt") version "2.1.0"
+    //kotlin("kapt") version "2.1.0"
     id("dev.frozenmilk.teamcode") version "10.1.1-0.1.3"
 }
 
 ftc {
     kotlin
+
+    sdk {
+        FtcCommon
+        Hardware
+        RobotCore
+    }
 }
 
 repositories {
