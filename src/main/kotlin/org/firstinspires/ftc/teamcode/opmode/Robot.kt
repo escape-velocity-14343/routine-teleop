@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.opmode
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import org.firstinspires.ftc.teamcode.subsystem.Drivetrain
 import org.firstinspires.ftc.teamcode.subsystem.Pinpoint
-import org.fishnpotatoes.routine.ftc.extensions.HardwareMapEx
+import org.fishies.routine.ftc.extensions.HardwareMapEx
 
 abstract class Robot : LinearOpMode() {
     val map = HardwareMapEx()

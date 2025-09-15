@@ -1,12 +1,12 @@
 package org.firstinspires.ftc.teamcode.subsystem
 
-import org.fishnpotatoes.routine.Subsystem
-import org.fishnpotatoes.routine.ftc.drivers.GoBildaPinpoint
-import org.fishnpotatoes.routine.ftc.extensions.HardwareMapEx
-import org.fishnpotatoes.routine.util.geometry.Pose2
-import org.fishnpotatoes.routine.util.geometry.inches
-import org.fishnpotatoes.routine.util.geometry.mm
-import org.fishnpotatoes.routine.util.geometry.radians
+import org.fishies.routine.Subsystem
+import org.fishies.routine.ftc.drivers.GoBildaPinpoint
+import org.fishies.routine.ftc.extensions.HardwareMapEx
+import org.fishies.routine.util.geometry.Pose2
+import org.fishies.routine.util.geometry.inches
+import org.fishies.routine.util.geometry.mm
+import org.fishies.routine.util.geometry.radians
 
 class Pinpoint(map: HardwareMapEx) : Subsystem() {
     private val p by map.deferred<GoBildaPinpoint>("pinpoint") {
