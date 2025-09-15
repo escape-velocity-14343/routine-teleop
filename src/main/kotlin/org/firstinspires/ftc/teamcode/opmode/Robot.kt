@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.opmode
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import org.firstinspires.ftc.teamcode.subsystem.Drivetrain
 import org.firstinspires.ftc.teamcode.subsystem.Pinpoint
-import org.fishies.routine.ftc.extensions.HardwareMapEx
+import dev.fishies.routine.ftc.extensions.HardwareMapEx
 
 abstract class Robot : LinearOpMode() {
     val map = HardwareMapEx()
@@ -13,4 +13,11 @@ abstract class Robot : LinearOpMode() {
 
     val drivetrain by map.deferred { Drivetrain(map) }
     val pinpoint by map.deferred { Pinpoint(map) }
+
+    final override fun runOpMode() {
+        map.init(hardwareMap)
+        run()
+    }
+
+    abstract fun run()
 }

@@ -1,32 +1,28 @@
 package org.firstinspires.ftc.teamcode.opmode
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
+import dev.fishies.routine.RoutineManager
+import dev.fishies.routine.RoutineManager.onceOnTrue
+import dev.fishies.routine.RoutineManager.run
+import dev.fishies.routine.compose.timeout
+import dev.fishies.routine.forever
+import dev.fishies.routine.ftc.extensions.AnalogInput
+import dev.fishies.routine.ftc.extensions.ButtonInput
+import dev.fishies.routine.ftc.extensions.VectorInput
+import dev.fishies.routine.ftc.extensions.get
+import dev.fishies.routine.routine
+import dev.fishies.routine.util.geometry.Vector2
+import dev.fishies.routine.util.geometry.inches
+import dev.fishies.routine.util.geometry.radians
+import dev.fishies.routine.util.math.symmetricSqrt
 import org.firstinspires.ftc.teamcode.utility.halfLinearHalfCubic
-import org.fishies.routine.RoutineManager
-import org.fishies.routine.RoutineManager.onceOnTrue
-import org.fishies.routine.forever
-import org.fishies.routine.ftc.extensions.AnalogInput
-import org.fishies.routine.ftc.extensions.ButtonInput
-import org.fishies.routine.ftc.extensions.VectorInput
-import org.fishies.routine.ftc.extensions.get
-import org.fishies.routine.groups.timeout
-import org.fishies.routine.routine
-import org.fishies.routine.run
-import org.fishies.routine.util.geometry.Vector2
-import org.fishies.routine.util.geometry.inches
-import org.fishies.routine.util.geometry.radians
-import org.fishies.routine.util.math.symmetricSqrt
 import kotlin.time.Duration.Companion.milliseconds
-
-//import org.fishnpotatoes.routine.RoutineManager
 
 @Suppress("unused")
 @TeleOp(name = "TeleOpp")
 open class TeleOpp : Robot() {
-    override fun runOpMode() {
-        map.init(hardwareMap)
+    override fun run() {
         waitForStart()
-
         routine {
             drivetrain.lock()
             restart = true
@@ -47,10 +43,13 @@ open class TeleOpp : Robot() {
             }.timeout(1500.milliseconds).timeout(2000.milliseconds).run()
         }
 
+        telemetry.msTransmissionInterval = 1
         while (opModeIsActive()) {
             RoutineManager.tick()
-            telemetry.addLine(RoutineManager.toString())
+            telemetry.addLine("$RoutineManager")
             telemetry.update()
         }
+
+        RoutineManager.reset()
     }
 }
