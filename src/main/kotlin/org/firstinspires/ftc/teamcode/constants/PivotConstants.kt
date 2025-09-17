@@ -17,7 +17,7 @@ object PivotConstants {
     val tolerance by DashboardEx["Pivot/tolerance", 1.5]
     val direction by DashboardEx["Pivot/direction", -1.0]
     val encoderInvert by DashboardEx["Pivot/encoderInvert", true]
-    val encoderOffset by DashboardEx["Pivot/encoderOffset", 170.2]
+    val encoderOffset by DashboardEx["Pivot/encoderOffset", -54.982]
     val outtakeExtendDegrees by DashboardEx["Pivot/outtakeExtendDegrees", 45.0]
     val retractDegrees by DashboardEx["Pivot/retractDegrees", bottomLimit]
 

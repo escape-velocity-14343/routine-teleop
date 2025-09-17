@@ -6,6 +6,7 @@ import dev.fishies.routine.Subsystem
 import dev.fishies.routine.ftc.drivers.CachingVoltageSensor
 import dev.fishies.routine.ftc.drivers.SensOrangeAbsoluteEncoder
 import dev.fishies.routine.ftc.extensions.HardwareMapEx
+import dev.fishies.routine.routine
 import dev.fishies.routine.util.SquIDController
 import dev.fishies.routine.util.Timer
 import dev.fishies.routine.util.geometry.Inches
@@ -13,7 +14,6 @@ import dev.fishies.routine.util.geometry.Radians
 import dev.fishies.routine.util.geometry.cos
 import dev.fishies.routine.util.geometry.degrees
 import dev.fishies.routine.util.geometry.inches
-import dev.fishies.routine.util.geometry.plus
 import dev.fishies.routine.util.geometry.radians
 import org.firstinspires.ftc.teamcode.constants.PivotConstants
 import org.firstinspires.ftc.teamcode.constants.SlideConstants
@@ -25,7 +25,7 @@ class Pivot(map: HardwareMapEx) : Subsystem() {
     private var pivotVelocity = Radians.ZERO
 
     private val encoder by map.deferred<SensOrangeAbsoluteEncoder>("sensOrange") {
-        offset = PivotConstants.encoderOffset.radians
+        offset = PivotConstants.encoderOffset.degrees
         inverted = PivotConstants.encoderInvert
     }
     private val motor0 by map.deferred<DcMotor>("tilt0") { direction = REVERSE }
@@ -68,17 +68,10 @@ class Pivot(map: HardwareMapEx) : Subsystem() {
         return y1 + slidePosition.inches * (y2 - y1) / (x2 - x1)
     }
 
-    private fun interpolatedRawFeedforward(): Double {
-        return interpolateKp(slidePosition())
-    }
+    private val dynamicKP
+        get() = interpolateKp(slidePosition())
 
-    private fun interpolatedRawFeedforwardkG(): Double {
-        return interpolateKg(slidePosition())
-    }
-
-    private fun getKg(): Double {
-        return interpolatedRawFeedforwardkG() * cos(angle)
-    }
+    private val kG get() = interpolateKg(slidePosition()) * cos(angle)
 
     /**
      * @param target in inches, use the same one as the pid target
@@ -94,11 +87,11 @@ class Pivot(map: HardwareMapEx) : Subsystem() {
         return target in angle - tolerance..angle + tolerance
     }
 
-    fun tiltToPos(target: Radians) {
+    private fun tiltToPos(target: Radians) {
         this.target = target
-        var power = CachingVoltageSensor.normalize(controller.calculate(target.degrees, angle.degrees)) + getKg()
+        var power = controller.calculate(target.degrees, angle.degrees) + kG
 
-        if (power <= 0 && isClose(target) && target.radians == PivotConstants.bottomLimit) {
+        if (power <= 0 && isClose(target) && target <= PivotConstants.bottomLimit.degrees) {
             power = -0.05
         }
 
@@ -106,7 +99,7 @@ class Pivot(map: HardwareMapEx) : Subsystem() {
             power *= PivotConstants.bottomPMult
         }
 
-        setPower(power)
+        setPower(CachingVoltageSensor.normalize(power))
     }
 
     override fun tick() {
@@ -117,12 +110,19 @@ class Pivot(map: HardwareMapEx) : Subsystem() {
         pivotVelocity = (lastAngle - angle) / loopTimer.elapsed.toDouble(DurationUnit.SECONDS)
         lastAngle = angle
 
-        controller.p = interpolatedRawFeedforward()
+        controller.p = dynamicKP
 
         if (!manualControl) {
             tiltToPos(target)
         }
 
         loopTimer.reset()
+    }
+
+    fun rotateTo(target: Radians, instant: Boolean = false) = routine(name = "PivotTo$target") {
+        this@Pivot.lock()
+        ready()
+        this@Pivot.target = target
+        if (!instant) while (!isClose(target)) yield()
     }
 }

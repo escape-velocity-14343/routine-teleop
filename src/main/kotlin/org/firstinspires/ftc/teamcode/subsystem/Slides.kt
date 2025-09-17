@@ -7,6 +7,7 @@ import dev.fishies.routine.Subsystem
 import dev.fishies.routine.ftc.drivers.CachingVoltageSensor
 import dev.fishies.routine.ftc.extensions.FtcDashboard
 import dev.fishies.routine.ftc.extensions.HardwareMapEx
+import dev.fishies.routine.routine
 import dev.fishies.routine.util.SquIDController
 import dev.fishies.routine.util.geometry.Inches
 import dev.fishies.routine.util.geometry.Radians
@@ -32,16 +33,21 @@ class Slides(map: HardwareMapEx) : Subsystem() {
         get() = (positionTicks / SlideConstants.ticksPerInch).inches
     var extensionPowerMul = 1.0
 
-    var targetPosition: Inches = 0.0.inches
+    var target: Inches = 0.0.inches
         set(value) {
             manualControl = false
             field = value
         }
-    val targetPositionTicks: Int get() = (targetPosition.inches * SlideConstants.ticksPerInch).roundToInt()
+    val targetTicks: Int get() = (target.inches * SlideConstants.ticksPerInch).roundToInt()
 
     var pivotAngle: () -> Radians = { Radians.ZERO }
 
     var manualControl = false
+
+    /**
+     * @param target in inches, uses the same one as the pid target
+     */
+    fun isClose(target: Inches) = target in position - SlideConstants.tolerance..position + SlideConstants.tolerance
 
     /**
      * Internal Factory Method
@@ -54,11 +60,6 @@ class Slides(map: HardwareMapEx) : Subsystem() {
         val static = SlideConstants.kS + dynamicFeedforward(position) * sin(pivotAngle())
         val power: Double = CachingVoltageSensor.normalize(squid * extensionPowerMul + static)
         setPower(power)
-    }
-
-    private fun extendTo(target: Inches) {
-        targetPosition = target
-        extendToPosition(targetPositionTicks)
     }
 
     private fun setPower(power: Double) {
@@ -90,7 +91,7 @@ class Slides(map: HardwareMapEx) : Subsystem() {
         positionTicks = -motor0.currentPosition - resetOffset
 
         if (!manualControl && position < SlideConstants.maxExtension.inches) {
-            extendTo(targetPosition)
+            extendToPosition(targetTicks)
         }
 
         if (positionTicks < 0) {
@@ -99,5 +100,12 @@ class Slides(map: HardwareMapEx) : Subsystem() {
 
         FtcDashboard.telemetry.addData("slide position", this.position)
         FtcDashboard.telemetry.addData("slide motor power", motor0.power)
+    }
+
+    fun extendTo(target: Inches, instant: Boolean = false) = routine(name = "SlidesTo$target") {
+        this@Slides.lock()
+        ready()
+        this@Slides.target = target
+        if (!instant) while (!isClose(target)) yield()
     }
 }
