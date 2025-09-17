@@ -29,7 +29,7 @@ class Pinpoint(map: HardwareMapEx) : Subsystem() {
 
     override fun tick() {
         p.update()
-        if (p.pose.x.inches.isNaN() || p.pose.y.inches.isNaN() || p.pose.heading.radians.isNaN() || (p.pose.x == 0.0.inches && p.pose.y == 0.0.inches && p.pose.heading == 0.0.radians)) {
+        if (p.pose.x.inches.isNaN() || p.pose.y.inches.isNaN() || p.pose.h.radians.isNaN() || (p.pose.x == 0.0.inches && p.pose.y == 0.0.inches && p.pose.h == 0.0.radians)) {
             lastPose = null
         } else {
             lastPose = p.pose
@@ -37,6 +37,11 @@ class Pinpoint(map: HardwareMapEx) : Subsystem() {
         }
     }
 
+    /**
+     * Warning - will completely break position!!
+     * ...
+     * or maybe not? this comment is from the old code
+     * */
     fun resetYaw() {
         p.pose = Pose2(p.pos, 0.0.radians)
     }
