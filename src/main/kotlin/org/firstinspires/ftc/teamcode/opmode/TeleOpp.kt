@@ -31,6 +31,9 @@ open class TeleOpp : Robot() {
         waitForStart()
         telemetry = MultipleTelemetry(telemetry, FtcDashboard.telemetry)
 
+        pivot.manualControl = true
+        slides.manualControl = true
+
         routine {
             drivetrain.lock()
             restart = true
@@ -61,6 +64,8 @@ open class TeleOpp : Robot() {
         telemetry.msTransmissionInterval = 1
         while (opModeIsActive()) {
             RoutineManager.tick()
+            telemetry.addData("pivot angle:", "${pivot.angle}")
+            telemetry.addData("slide position:", "${slides.position}")
             telemetry.addLine("$RoutineManager")
             telemetry.update()
         }
@@ -70,5 +75,7 @@ open class TeleOpp : Robot() {
 
     fun configureDriver() {
         driver[ButtonInput.OPTIONS and ButtonInput.SHARE].onceOnTrue { pinpoint.resetYaw() }
+
+        //driver[ButtonInput.A].onceOnTrue { pivot.target =  }
     }
 }
