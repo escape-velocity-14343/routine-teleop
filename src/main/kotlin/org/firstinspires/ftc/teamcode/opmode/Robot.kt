@@ -2,21 +2,24 @@ package org.firstinspires.ftc.teamcode.opmode
 
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
-import dev.fishies.routine.compose.delay
+import dev.fishies.routine.Routine
 import dev.fishies.routine.compose.stopWhen
 import dev.fishies.routine.compose.parallel
 import dev.fishies.routine.compose.serial
 import dev.fishies.routine.ftc.drivers.CachingVoltageSensor
 import dev.fishies.routine.ftc.extensions.FtcDashboard
 import dev.fishies.routine.ftc.extensions.HardwareMapEx
+import dev.fishies.routine.instant
 import dev.fishies.routine.routine
+import dev.fishies.routine.unit
+import dev.fishies.routine.util.SquIDController
 import dev.fishies.routine.util.geometry.Inches
+import dev.fishies.routine.util.geometry.Pose2
 import dev.fishies.routine.util.geometry.Radians
+import dev.fishies.routine.util.geometry.abs
 import dev.fishies.routine.util.geometry.degrees
 import dev.fishies.routine.util.geometry.inches
 import dev.fishies.routine.util.geometry.radians
-import dev.fishies.routine.util.geometry.sin
-import dev.fishies.routine.waitUntil
 import org.firstinspires.ftc.robotcore.external.Telemetry
 import org.firstinspires.ftc.teamcode.constants.IVKConstants
 import org.firstinspires.ftc.teamcode.constants.IntakeConstants
@@ -30,8 +33,18 @@ import org.firstinspires.ftc.teamcode.subsystem.Pivot
 import org.firstinspires.ftc.teamcode.subsystem.Slides
 import org.firstinspires.ftc.teamcode.subsystem.Turret
 import org.firstinspires.ftc.teamcode.subsystem.Wrist
+import kotlin.let
 
 abstract class Robot : LinearOpMode() {
+    enum class State {
+        READY,
+        INTAKE_READY,
+        INTAKING,
+        OUTTAKING,
+    }
+
+    protected var currentState = State.READY
+
     protected val map = HardwareMapEx()
 
     protected val driver by map.deferred { gamepad1 ?: error("Driver gamepad not found") }
@@ -58,6 +71,7 @@ abstract class Robot : LinearOpMode() {
         telemetry = MultipleTelemetry(telemetry, FtcDashboard.telemetry)
         telemetry.msTransmissionInterval = 1
         telemetry.setDisplayFormat(Telemetry.DisplayFormat.MONOSPACE)
+        slides.reset()
         run()
     }
 
@@ -69,57 +83,82 @@ abstract class Robot : LinearOpMode() {
     }
 
     fun bucketPos(level: BucketLevel) = parallel(
-        pivot.rotateTo(PivotConstants.stallTopLimit.radians),
-        serial(
-            waitUntil { pivot.angle > PivotConstants.outtakeExtendDegrees.degrees },
-            slides.extendTo(
-                when (level) {
-                    BucketLevel.LOW -> SlideConstants.lowBucketPos
-                    BucketLevel.HIGH -> SlideConstants.bucketPos
-                }.inches
-            ),
+        pivot.rotateTo(PivotConstants.stallTopLimit.radians)
+            .stopWhen { pivot.angle > PivotConstants.outtakeExtendDegrees.degrees },
+        slides.extendTo(
+            when (level) {
+                BucketLevel.LOW -> SlideConstants.lowBucketPos
+                BucketLevel.HIGH -> SlideConstants.bucketPos
+            }.inches
         ),
+        wrist.rotateTo(IntakeConstants.scoringPos),
+        changeTo(State.OUTTAKING),
     )
 
     fun retract() = serial(
+        wrist.rotateTo(IntakeConstants.foldedPos),
         slides.extendTo(SlideConstants.minExtension.inches),
         pivot.rotateTo(PivotConstants.bottomLimit.degrees),
+        changeTo(State.READY),
     )
 
-    fun subPosReady(forward: Inches, turretAngle: Radians, alreadyInPosition: Boolean) = routine(name = "SubPosReady") {
-        slides.lock()
-        pivot.lock()
-        wrist.lock()
-        intake.lock()
-        turret.lock()
-        ready()
+    fun subPosReady(
+        forward: Inches = 20.inches,
+        turretAngle: Radians = 0.degrees,
+        inPosition: Boolean = currentState in listOf(State.INTAKING, State.INTAKE_READY),
+    ) = serial(
+        if (!inPosition) parallel(
+            intake.control(pos = IntakeConstants.closedPos, speed = 0.0),
+            wrist.rotateTo(if (pivot.angle > 70.0.degrees) IntakeConstants.groundPos - 0.075 else IntakeConstants.foldedPos),
+            turret.rotateTo(0.radians),
+            slides.extendTo(SlideConstants.minExtension.inches).stopWhen { slides.position < 24.inches },
+        ) else unit(),
 
-        if (!alreadyInPosition) {
-            await(
-                parallel(
-                    intake.control(pos = IntakeConstants.closedPos, speed = 0.0),
-                    wrist.rotateTo(if (pivot.angle > 70.0.degrees) IntakeConstants.groundPos - 0.075 else IntakeConstants.foldedPos),
-                    turret.rotateTo(0.radians),
-                    slides.extendTo(SlideConstants.minExtension.inches).stopWhen { slides.position < 24.inches },
+        intake.control(pos = IntakeConstants.singleIntakePos, speed = 0.0),
+
+        parallel(
+            serial(
+                if (!inPosition) {
+                    pivot.rotateTo(PivotConstants.bottomLimit.degrees).stopWhen { pivot.angle < 45.degrees }
+                } else unit(),
+                ivk(forward, IVKConstants.intakeReadyY.inches),
+            ),
+            turret.rotateTo(turretAngle),
+        ),
+
+        wrist.rotateTo(IntakeConstants.toptakePos),
+        changeTo(State.INTAKE_READY),
+    )
+
+    fun subPos(forward: Inches = 20.inches) = serial(
+        intake.control(speed = 1.0), ivk(forward, IVKConstants.intakeY.inches, instant = true), changeTo(State.INTAKING)
+    )
+
+    private val translationkP = 0.025
+    private val headingkP = 0.004
+    private val tolerance = 2.inches
+    private val headingTolerance = 4.degrees
+    fun driveTo(pose: Pose2): Routine {
+
+        val xCtl = SquIDController(translationkP)
+        val yCtl = SquIDController(translationkP)
+        val hCtl = SquIDController(headingkP)
+
+        return routine {
+            drivetrain.lock()
+            ready()
+            while (pinpoint.pose.distanceTo(pose).let { it.first < tolerance && abs(it.second) < headingTolerance }) {
+                drivetrain.drive(
+                    Pose2(
+                        xCtl.calculate(pose.x, pinpoint.pose.x),
+                        yCtl.calculate(pose.y, pinpoint.pose.y),
+                        hCtl.calculate(pose.h, pinpoint.pose.h)
+                    )
                 )
-            )
+                yield()
+            }
         }
-
-        await(intake.control(pos = IntakeConstants.singleIntakePos))
-
-        if (!alreadyInPosition) {
-            await(
-                parallel(
-                    routine {
-                        ready()
-                        await(pivot.rotateTo(PivotConstants.bottomLimit.degrees).stopWhen { pivot.angle < 45.degrees })
-                        await(ivk(forward, IVKConstants.intakeReadyY.inches))
-                    },
-                    turret.rotateTo(turretAngle),
-                )
-            )
-        }
-
-        await(wrist.rotateTo(IntakeConstants.toptakePos))
     }
+
+    fun changeTo(newState: State) = instant { currentState = newState }
 }
