@@ -21,6 +21,4 @@ class Turret(map: HardwareMapEx) : Subsystem() {
         ready()
         position = target
     }
-
-    override fun tick() = Unit
 }

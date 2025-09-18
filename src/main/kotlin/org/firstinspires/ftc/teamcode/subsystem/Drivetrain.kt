@@ -2,11 +2,8 @@ package org.firstinspires.ftc.teamcode.subsystem
 
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorSimple.Direction.REVERSE
-import dev.fishies.routine.Routine
 import dev.fishies.routine.Subsystem
 import dev.fishies.routine.ftc.extensions.HardwareMapEx
-import dev.fishies.routine.routine
-import dev.fishies.routine.util.SquIDController
 import dev.fishies.routine.util.geometry.Pose2
 import dev.fishies.routine.util.geometry.Radians
 import dev.fishies.routine.util.geometry.Vector2
@@ -26,6 +23,4 @@ class Drivetrain(map: HardwareMapEx) : Subsystem() {
     }
 
     fun drive(translationPower: Vector2, headingPower: Radians) = drive(Pose2(translationPower, headingPower))
-
-    override fun tick() {}
 }

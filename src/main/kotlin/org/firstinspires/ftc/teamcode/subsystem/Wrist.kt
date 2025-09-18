@@ -31,6 +31,4 @@ class Wrist(map: HardwareMapEx) : Subsystem() {
         position = target
         delay(rotationTime)
     }
-
-    override fun tick() = Unit
 }
